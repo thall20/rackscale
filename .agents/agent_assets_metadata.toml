@@ -1,0 +1,14 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "QUkrxcNSjXzWguO2jdY-C"
+uri = "file://supabase/schema.zip"
+type = "unspecified"
+title = "RackScale — Supabase Schema (schema.sql)"
+
+[[outputs]]
+id = "2SAdnyq03uJ2twKmM-Cjv"
+uri = "file://supabase/rackscale-schema.zip"
+type = "unspecified"
+title = "RackScale SQL Schema Files"

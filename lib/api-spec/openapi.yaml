@@ -1,0 +1,534 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: RackScale API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: projects
+    description: Data center project management
+  - name: scenarios
+    description: Rack density scenarios
+  - name: dashboard
+    description: Dashboard analytics
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all projects
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, archived, draft]
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a new project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectBody"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{id}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a project by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Project not found
+    put:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectBody"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Project deleted
+
+  /projects/{projectId}/scenarios:
+    get:
+      operationId: listScenarios
+      tags: [scenarios]
+      summary: List scenarios for a project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of scenarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Scenario"
+    post:
+      operationId: createScenario
+      tags: [scenarios]
+      summary: Create a scenario
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScenarioBody"
+      responses:
+        "201":
+          description: Scenario created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scenario"
+
+  /projects/{projectId}/scenarios/{id}:
+    get:
+      operationId: getScenario
+      tags: [scenarios]
+      summary: Get a scenario with computed results
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scenario with results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioWithResults"
+    put:
+      operationId: updateScenario
+      tags: [scenarios]
+      summary: Update a scenario
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScenarioBody"
+      responses:
+        "200":
+          description: Updated scenario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scenario"
+    delete:
+      operationId: deleteScenario
+      tags: [scenarios]
+      summary: Delete a scenario
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Scenario deleted
+
+  /projects/{projectId}/compare:
+    get:
+      operationId: compareScenarios
+      tags: [scenarios]
+      summary: Compare multiple scenarios side by side
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: ids
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated scenario IDs
+      responses:
+        "200":
+          description: Comparison data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioComparison"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent activity feed
+      responses:
+        "200":
+          description: Recent activity items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/risk-summary:
+    get:
+      operationId: getRiskSummary
+      tags: [dashboard]
+      summary: Get aggregated risk flags across all projects
+      responses:
+        "200":
+          description: Risk summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskSummary"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        status:
+          type: string
+          enum: [active, archived, draft]
+        totalRackCount:
+          type: integer
+        scenarioCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, status, totalRackCount, scenarioCount, createdAt, updatedAt]
+
+    CreateProjectBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        status:
+          type: string
+          enum: [active, archived, draft]
+        totalRackCount:
+          type: integer
+      required: [name, totalRackCount]
+
+    Scenario:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        rackCount:
+          type: integer
+        avgKwPerRack:
+          type: number
+        coolingType:
+          type: string
+          enum: [air, liquid, hybrid]
+        redundancyLevel:
+          type: string
+          enum: [N, N+1, 2N]
+        pueTarget:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, projectId, name, rackCount, avgKwPerRack, coolingType, redundancyLevel, pueTarget, createdAt, updatedAt]
+
+    CreateScenarioBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        rackCount:
+          type: integer
+        avgKwPerRack:
+          type: number
+        coolingType:
+          type: string
+          enum: [air, liquid, hybrid]
+        redundancyLevel:
+          type: string
+          enum: [N, N+1, 2N]
+        pueTarget:
+          type: number
+      required: [name, rackCount, avgKwPerRack, coolingType, redundancyLevel, pueTarget]
+
+    RiskFlag:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [low, medium, high, critical]
+        category:
+          type: string
+          enum: [power, cooling, capacity, redundancy]
+        message:
+          type: string
+        recommendation:
+          type: string
+      required: [level, category, message, recommendation]
+
+    ScenarioResults:
+      type: object
+      properties:
+        totalItLoad:
+          type: number
+          description: Total IT load in kW
+        totalPowerDraw:
+          type: number
+          description: Total power draw including PUE in kW
+        coolingCapacityRequired:
+          type: number
+          description: Required cooling capacity in kW
+        estimatedAnnualCost:
+          type: number
+          description: Estimated annual energy cost in USD
+        powerDensityKwPerSqft:
+          type: number
+        co2EmissionsKgPerYear:
+          type: number
+        riskFlags:
+          type: array
+          items:
+            $ref: "#/components/schemas/RiskFlag"
+      required: [totalItLoad, totalPowerDraw, coolingCapacityRequired, estimatedAnnualCost, powerDensityKwPerSqft, co2EmissionsKgPerYear, riskFlags]
+
+    ScenarioWithResults:
+      allOf:
+        - $ref: "#/components/schemas/Scenario"
+        - type: object
+          properties:
+            results:
+              $ref: "#/components/schemas/ScenarioResults"
+          required: [results]
+
+    ScenarioComparison:
+      type: object
+      properties:
+        projectId:
+          type: string
+        scenarios:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScenarioWithResults"
+        winner:
+          type: object
+          properties:
+            scenarioId:
+              type: string
+            reason:
+              type: string
+          required: [scenarioId, reason]
+      required: [projectId, scenarios, winner]
+
+    DashboardStats:
+      type: object
+      properties:
+        totalProjects:
+          type: integer
+        activeProjects:
+          type: integer
+        totalScenarios:
+          type: integer
+        totalItLoadKw:
+          type: number
+        criticalRiskCount:
+          type: integer
+        avgPue:
+          type: number
+      required: [totalProjects, activeProjects, totalScenarios, totalItLoadKw, criticalRiskCount, avgPue]
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [project_created, scenario_created, scenario_updated, risk_flagged]
+        message:
+          type: string
+        projectId:
+          type: string
+        projectName:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required: [id, type, message, projectId, projectName, timestamp]
+
+    RiskSummary:
+      type: object
+      properties:
+        critical:
+          type: integer
+        high:
+          type: integer
+        medium:
+          type: integer
+        low:
+          type: integer
+        topRisks:
+          type: array
+          items:
+            $ref: "#/components/schemas/RiskFlag"
+      required: [critical, high, medium, low, topRisks]
