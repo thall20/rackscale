@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Server, AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { RackScaleLogo } from "@/components/RackScaleLogo";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -83,10 +84,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-          <div className="flex items-center gap-2 text-primary">
-            <Server className="h-8 w-8" />
-            <span className="text-3xl font-bold tracking-tight text-foreground">RackScale</span>
-          </div>
+          <RackScaleLogo size="lg" />
         </div>
 
         <Card className="shadow-lg border-muted">

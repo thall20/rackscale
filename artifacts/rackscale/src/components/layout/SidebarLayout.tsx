@@ -6,10 +6,10 @@ import {
   Settings,
   LogOut,
   Menu,
-  Server,
   Loader2,
   CreditCard,
 } from "lucide-react";
+import { RackScaleLogo } from "@/components/RackScaleLogo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,9 +47,8 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
 
   const NavLinks = () => (
     <>
-      <div className="mb-8 flex items-center px-4">
-        <Server className="h-6 w-6 text-primary mr-2" />
-        <span className="text-xl font-bold tracking-tight">RackScale</span>
+      <div className="mb-8 px-2">
+        <RackScaleLogo size="sm" />
       </div>
       <div className="space-y-1">
         {navItems.map((item) => {
@@ -110,8 +109,7 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
             <NavLinks />
           </SheetContent>
         </Sheet>
-        <Server className="h-5 w-5 text-primary mr-2" />
-        <span className="font-bold">RackScale</span>
+        <RackScaleLogo size="sm" />
       </div>
 
       {/* Main Content */}

@@ -1,7 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Server, Activity, ShieldAlert, Cpu, BarChart3, ChevronRight, Zap } from "lucide-react";
+import { Activity, ShieldAlert, Cpu, BarChart3, ChevronRight, Zap } from "lucide-react";
+import { RackScaleLogo } from "@/components/RackScaleLogo";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function LandingPage() {
@@ -19,10 +20,7 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Server className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold tracking-tight">RackScale</span>
-          </div>
+          <RackScaleLogo size="sm" />
           <div className="flex items-center gap-4">
             <Link href="/login">
               <Button variant="ghost" data-testid="btn-nav-login">Log In</Button>
