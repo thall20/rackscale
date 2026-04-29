@@ -54,9 +54,6 @@ export default function LandingPage() {
                     Start Modeling <ChevronRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
-                <Button size="lg" variant="outline" className="h-14 px-8 text-base font-semibold" data-testid="btn-hero-docs">
-                  View Documentation
-                </Button>
               </div>
             </div>
           </div>
@@ -189,7 +186,7 @@ export default function LandingPage() {
             <span className="font-bold tracking-tight">RackScale</span>
           </div>
           <div className="text-sm">
-            &copy; {new Date().getFullYear()} RackScale Systems. All rights reserved.
+            &copy; {new Date().getFullYear()} Juice Data Solutions. All rights reserved.
           </div>
         </div>
       </footer>
