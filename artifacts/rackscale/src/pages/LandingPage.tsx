@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Activity, ShieldAlert, Cpu, BarChart3, ChevronRight, Zap } from "lucide-react";
-import { RackScaleLogo } from "@/components/RackScaleLogo";
+import { RackScaleLogo, RackIcon } from "@/components/RackScaleLogo";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function LandingPage() {
@@ -185,7 +185,7 @@ export default function LandingPage() {
       <footer className="py-12 px-6 border-t bg-card text-muted-foreground">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <Server className="h-5 w-5" />
+            <RackIcon size={20} />
             <span className="font-bold tracking-tight">RackScale</span>
           </div>
           <div className="text-sm">
