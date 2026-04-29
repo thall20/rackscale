@@ -18,15 +18,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 async function ensureProfile(user: User): Promise<{ companyId: string | null; error: string | null }> {
   if (!supabase) return { companyId: null, error: "Supabase is not configured." };
 
-  const { data: existing, error: selectErr } = await supabase
-    .from("profiles")
-    .select("id, company_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (selectErr) return { companyId: null, error: selectErr.message };
-  if (existing?.company_id) return { companyId: existing.company_id, error: null };
-
   const companyName: string =
     (user.user_metadata?.company_name as string | undefined)?.trim() ||
     (() => {
@@ -34,27 +25,14 @@ async function ensureProfile(user: User): Promise<{ companyId: string | null; er
       return domain.split(".")[0].replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     })();
 
-  const { data: company, error: companyErr } = await supabase
-    .from("companies")
-    .insert({ name: companyName })
-    .select("id")
-    .single();
+  const { data, error } = await supabase.rpc("create_company_and_profile", {
+    p_company_name: companyName,
+  });
 
-  if (companyErr || !company) {
-    return { companyId: null, error: companyErr?.message ?? "Failed to create company." };
-  }
+  if (error) return { companyId: null, error: error.message };
 
-  const { data: profile, error: profileErr } = await supabase
-    .from("profiles")
-    .insert({ id: user.id, company_id: company.id, full_name: (user.user_metadata?.full_name as string | undefined) ?? null })
-    .select("id, company_id")
-    .single();
-
-  if (profileErr || !profile) {
-    return { companyId: null, error: profileErr?.message ?? "Failed to create profile." };
-  }
-
-  return { companyId: profile.company_id, error: null };
+  const result = data as { company_id: string } | null;
+  return { companyId: result?.company_id ?? null, error: null };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
