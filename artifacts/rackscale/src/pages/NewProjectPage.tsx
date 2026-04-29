@@ -35,7 +35,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function NewProjectPage() {
   const [, setLocation] = useLocation();
-  const { companyId } = useAuth();
+  const { companyId, profileError } = useAuth();
   const queryClient = useQueryClient();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -87,6 +87,14 @@ export default function NewProjectPage() {
             <CardDescription>Basic information about the data center project.</CardDescription>
           </CardHeader>
           <CardContent>
+            {profileError && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Account setup incomplete: {profileError}. Please sign out and sign back in, or contact support.
+                </AlertDescription>
+              </Alert>
+            )}
             {submitError && (
               <Alert variant="destructive" className="mb-6">
                 <AlertCircle className="h-4 w-4" />
