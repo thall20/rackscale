@@ -20,12 +20,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 
-const formSchema = z.object({
+const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+const signUpSchema = z.object({
+  companyName: z.string().min(1, { message: "Company name is required." }),
+  email: z.string().email({ message: "Invalid email address." }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+});
+
+type LoginValues = z.infer<typeof loginSchema>;
+type SignUpValues = z.infer<typeof signUpSchema>;
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -35,15 +42,17 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signIn, signUp } = useAuth();
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+  const loginForm = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
   });
 
-  async function onLogin(values: FormValues) {
+  const signUpForm = useForm<SignUpValues>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: { companyName: "", email: "", password: "" },
+  });
+
+  async function onLogin(values: LoginValues) {
     setAuthError(null);
     setIsSubmitting(true);
     const { error } = await signIn(values.email, values.password);
@@ -55,10 +64,10 @@ export default function LoginPage() {
     }
   }
 
-  async function onSignUp(values: FormValues) {
+  async function onSignUp(values: SignUpValues) {
     setAuthError(null);
     setIsSubmitting(true);
-    const { error } = await signUp(values.email, values.password);
+    const { error } = await signUp(values.email, values.password, values.companyName);
     setIsSubmitting(false);
     if (error) {
       setAuthError(error);
@@ -66,7 +75,7 @@ export default function LoginPage() {
       setAuthError(null);
       setSignUpSuccess(true);
       setActiveTab("login");
-      form.reset();
+      signUpForm.reset();
     }
   }
 
@@ -113,10 +122,10 @@ export default function LoginPage() {
               )}
 
               <TabsContent value="login" className="mt-0">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onLogin)} className="space-y-4">
+                <Form {...loginForm}>
+                  <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
                     <FormField
-                      control={form.control}
+                      control={loginForm.control}
                       name="email"
                       render={({ field }) => (
                         <FormItem>
@@ -134,7 +143,7 @@ export default function LoginPage() {
                       )}
                     />
                     <FormField
-                      control={form.control}
+                      control={loginForm.control}
                       name="password"
                       render={({ field }) => (
                         <FormItem>
@@ -165,10 +174,28 @@ export default function LoginPage() {
               </TabsContent>
 
               <TabsContent value="signup" className="mt-0">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSignUp)} className="space-y-4">
+                <Form {...signUpForm}>
+                  <form onSubmit={signUpForm.handleSubmit(onSignUp)} className="space-y-4">
                     <FormField
-                      control={form.control}
+                      control={signUpForm.control}
+                      name="companyName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Acme Data Centers"
+                              autoComplete="organization"
+                              {...field}
+                              data-testid="input-signup-company"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={signUpForm.control}
                       name="email"
                       render={({ field }) => (
                         <FormItem>
@@ -186,7 +213,7 @@ export default function LoginPage() {
                       )}
                     />
                     <FormField
-                      control={form.control}
+                      control={signUpForm.control}
                       name="password"
                       render={({ field }) => (
                         <FormItem>

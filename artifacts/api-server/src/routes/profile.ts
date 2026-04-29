@@ -58,13 +58,15 @@ router.post("/profile/ensure", async (req, res): Promise<void> => {
 
   // --- No profile yet: create company then profile ---
 
-  // Derive a friendly company name from the email domain
+  // Use the company name provided at signup, falling back to email domain
   const email = user.email ?? "";
   const domain = email.split("@")[1] ?? "company";
-  const companyName = domain
-    .split(".")[0]
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (c: string) => c.toUpperCase());
+  const metaCompanyName = user.user_metadata?.company_name as string | undefined;
+  const companyName = metaCompanyName?.trim() ||
+    domain
+      .split(".")[0]
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (c: string) => c.toUpperCase());
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = admin as any;

@@ -8,7 +8,7 @@ type AuthContextType = {
   loading: boolean;
   companyId: string | null;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, companyName: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -70,9 +70,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null };
   };
 
-  const signUp = async (email: string, password: string): Promise<{ error: string | null }> => {
+  const signUp = async (email: string, password: string, companyName: string): Promise<{ error: string | null }> => {
     if (!supabase) return { error: "Authentication is not configured." };
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { company_name: companyName } },
+    });
     if (error) return { error: error.message };
     return { error: null };
   };
