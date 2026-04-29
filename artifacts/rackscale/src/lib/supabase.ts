@@ -5,8 +5,9 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undef
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
-    "[RackScale] Supabase environment variables are not configured. " +
-    "Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable authentication."
+    "[RackScale] Supabase environment variables are not configured.\n" +
+    `  VITE_SUPABASE_URL     : ${supabaseUrl ? `set (${supabaseUrl.slice(0, 30)}...)` : "NOT SET ❌"}\n` +
+    `  VITE_SUPABASE_ANON_KEY: ${supabaseAnonKey ? `set (${supabaseAnonKey.slice(0, 10)}...)` : "NOT SET ❌"}`
   );
 }
 
