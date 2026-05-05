@@ -69,6 +69,18 @@ export type Scenario = {
   updated_at: string;
 };
 
+export type PhysicalFitStatus =
+  | "Good Fit"
+  | "Review Recommended"
+  | "High Risk"
+  | "Not Evaluated";
+
+export type FacilityRiskMessage = {
+  code: string;
+  severity: "info" | "warning" | "critical";
+  message: string;
+};
+
 export type ScenarioResultRow = {
   id: string;
   scenario_id: string;
@@ -83,6 +95,12 @@ export type ScenarioResultRow = {
   calculated_at: string;
   created_at: string;
   updated_at: string;
+  // ── Facility Constraints outputs (nullable — added post-launch) ───────────
+  total_available_sqft: number | null;
+  estimated_rack_footprint_sqft: number | null;
+  space_utilization_percent: number | null;
+  physical_fit_status: PhysicalFitStatus | null;
+  facility_risk_messages: FacilityRiskMessage[];
 };
 
 export type ScenarioWithResult = Scenario & {
@@ -133,6 +151,12 @@ export type CreateScenarioResultInput = {
   efficiency_rating: string;
   risk_flags: RiskFlag[];
   overall_risk_level: "low" | "medium" | "high" | "critical";
+  // ── Facility Constraints outputs (all optional) ───────────────────────────
+  total_available_sqft?: number | null;
+  estimated_rack_footprint_sqft?: number | null;
+  space_utilization_percent?: number | null;
+  physical_fit_status?: PhysicalFitStatus | null;
+  facility_risk_messages?: FacilityRiskMessage[];
 };
 
 function client() {
