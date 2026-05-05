@@ -2,7 +2,7 @@ import { SidebarLayout } from "@/components/layout/SidebarLayout";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { listProjects } from "@/lib/supabase-projects";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

@@ -1,4 +1,4 @@
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import type { Company } from "@/lib/supabase-projects";
 import type { CompanyPlan, CompanyPlanStatus } from "@/lib/plans";
 

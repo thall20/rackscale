@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Activity, ShieldAlert, Cpu, BarChart3, ChevronRight, Zap } from "lucide-react";
 import { RackScaleLogo, RackIcon } from "@/components/RackScaleLogo";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();

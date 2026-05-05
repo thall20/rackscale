@@ -3,7 +3,7 @@ import type { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { getCompany, type Company } from "@/lib/supabase-projects";
 
-type AuthContextType = {
+export type AuthContextType = {
   user: User | null;
   session: Session | null;
   loading: boolean;
@@ -15,7 +15,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function ensureProfile(user: User): Promise<{ companyId: string | null; error: string | null }> {
   if (!supabase) return { companyId: null, error: "Supabase is not configured." };
@@ -118,12 +118,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 }

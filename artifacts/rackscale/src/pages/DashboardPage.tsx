@@ -3,7 +3,7 @@ import { SidebarLayout } from "@/components/layout/SidebarLayout";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { listProjects, listAllScenariosWithProject } from "@/lib/supabase-projects";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { calculateScenario } from "@/lib/calculateScenario";
 import type { ScenarioWithProjectName } from "@/lib/supabase-projects";
 import type { RedundancyType, CoolingType } from "@/lib/calculateScenario";

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createProject } from "@/lib/supabase-projects";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";

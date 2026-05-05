@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { getScenarioWithResult, getProject } from "@/lib/supabase-projects";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { calculateScenario } from "@/lib/calculateScenario";
 import type { RedundancyType, CoolingType } from "@/lib/calculateScenario";
 import { Badge } from "@/components/ui/badge";
