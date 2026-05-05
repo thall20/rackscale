@@ -9,7 +9,7 @@ import { createScenario, createScenarioResult, listAllScenariosWithProject } fro
 import { computeScenario } from "@/lib/calculations";
 import { calculateScenario } from "@/lib/calculateScenario";
 import { useCompanyPlan } from "@/hooks/useCompanyPlan";
-import { getScenarioLimit } from "@/lib/featureAccess";
+import { getScenarioLimit, canUseFacilityConstraints } from "@/lib/featureAccess";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,33 +21,42 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, ArrowRight, Layers, Zap, Snowflake,
   DollarSign, CheckCircle2, AlertCircle, Loader2,
-  Lock, ArrowUpRight,
+  Lock, ArrowUpRight, Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
 const schema = z.object({
-  // Step 1
+  // Step 1 — Capacity
   name: z.string().min(1, "Scenario name is required."),
   description: z.string().optional(),
   rackCount: z.coerce.number().min(1, "Must have at least 1 rack.").max(10000),
   kwPerRack: z.coerce.number().min(0.5, "Minimum 0.5 kW/rack.").max(200),
   growthBufferPct: z.coerce.number().min(0).max(100),
-  // Step 2
+  // Step 2 — Power
   redundancyType: z.enum(["N", "N+1", "2N"]),
   utilityFeed: z.enum(["single", "dual"]),
   upsType: z.enum(["centralized", "distributed"]),
-  // Step 3
+  // Step 3 — Cooling
   coolingType: z.enum(["air", "hybrid", "liquid"]),
   pueTarget: z.coerce.number().min(1.0, "PUE must be ≥ 1.0").max(3.0, "PUE must be ≤ 3.0"),
   containmentType: z.enum(["none", "hot_aisle", "cold_aisle"]),
-  // Step 4
+  // Step 4 — Cost
   costPerMw: z.coerce.number().min(0),
   costPerRack: z.coerce.number().min(0),
+  // Step 5 — Facility Constraints (all optional; validated conditionally on submit)
+  sqftPerFloor: z.coerce.number().optional(),
+  floorLevel: z.coerce.number().optional(),
+  floorsUsed: z.coerce.number().optional(),
+  flooringType: z.enum(["Slab", "Raised Floor", "Structural Grid", "Other"]).optional(),
+  serverSpacingFt: z.coerce.number().optional(),
+  ceilingHeightFt: z.coerce.number().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -59,6 +68,7 @@ const STEPS = [
   { label: "Power",     icon: Zap,       fields: ["redundancyType","utilityFeed","upsType"] },
   { label: "Cooling",   icon: Snowflake, fields: ["coolingType","pueTarget","containmentType"] },
   { label: "Cost",      icon: DollarSign,fields: ["costPerMw","costPerRack"] },
+  { label: "Facility",  icon: Building2, fields: [] },
 ] as const;
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -70,10 +80,12 @@ export default function NewScenarioPage() {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [facilityEnabled, setFacilityEnabled] = useState(false);
 
   // ── Plan gate ────────────────────────────────────────────────────────────
   const { companyId, plan } = useCompanyPlan();
-  const effectiveLimit = getScenarioLimit(plan); // null = unlimited (paid plans)
+  const effectiveLimit = getScenarioLimit(plan);
+  const hasFacility = canUseFacilityConstraints(plan);
 
   const { data: allScenarios, isLoading: scenariosLoading } = useQuery({
     queryKey: ["allScenarios", companyId],
@@ -106,7 +118,7 @@ export default function NewScenarioPage() {
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
-      // 0. Pre-flight: re-check limit at submission time (defense-in-depth)
+      // 0. Pre-flight: re-check limit at submission time
       const fresh = await listAllScenariosWithProject(100);
       const freshLimit = getScenarioLimit(plan);
       if (freshLimit !== null && fresh.length >= freshLimit) {
@@ -115,7 +127,9 @@ export default function NewScenarioPage() {
         );
       }
 
-      // 1. Save scenario (facility constraints off by default until UI is added)
+      const fcEnabled = facilityEnabled && hasFacility;
+
+      // 1. Save scenario
       const scenario = await createScenario({
         project_id: projectId,
         name: values.name,
@@ -131,16 +145,16 @@ export default function NewScenarioPage() {
         containment_type: values.containmentType,
         cost_per_mw: values.costPerMw,
         cost_per_rack: values.costPerRack,
-        facility_constraints_enabled: false,
-        sqft_per_floor: null,
-        floor_level: null,
-        floors_used: null,
-        flooring_type: null,
-        server_spacing_ft: null,
-        ceiling_height_ft: null,
+        facility_constraints_enabled: fcEnabled,
+        sqft_per_floor: fcEnabled ? (values.sqftPerFloor ?? null) : null,
+        floor_level: fcEnabled ? (values.floorLevel ?? null) : null,
+        floors_used: fcEnabled ? (values.floorsUsed ?? null) : null,
+        flooring_type: fcEnabled ? (values.flooringType ?? null) : null,
+        server_spacing_ft: fcEnabled ? (values.serverSpacingFt ?? null) : null,
+        ceiling_height_ft: fcEnabled ? (values.ceilingHeightFt ?? null) : null,
       });
 
-      // 2. Compute results — existing engine for core power/cost metrics
+      // 2. Core power / cost metrics
       const result = computeScenario({
         rackCount: values.rackCount,
         kwPerRack: values.kwPerRack,
@@ -155,7 +169,7 @@ export default function NewScenarioPage() {
         costPerRack: values.costPerRack,
       });
 
-      // 2b. Facility constraints engine — returns "Not Evaluated" outputs when disabled
+      // 2b. Facility constraints engine
       const facilityResult = calculateScenario({
         rackCount: values.rackCount,
         kwPerRack: values.kwPerRack,
@@ -164,10 +178,16 @@ export default function NewScenarioPage() {
         coolingType: values.coolingType,
         costPerMw: values.costPerMw,
         costPerRack: values.costPerRack,
-        facilityConstraintsEnabled: false,
+        facilityConstraintsEnabled: fcEnabled,
+        sqftPerFloor: fcEnabled ? values.sqftPerFloor : undefined,
+        floorLevel: fcEnabled ? values.floorLevel : undefined,
+        floorsUsed: fcEnabled ? values.floorsUsed : undefined,
+        flooringType: fcEnabled ? values.flooringType : undefined,
+        serverSpacingFt: fcEnabled ? values.serverSpacingFt : undefined,
+        ceilingHeightFt: fcEnabled ? values.ceilingHeightFt : undefined,
       });
 
-      // 3. Save result with facility constraint outputs
+      // 3. Save result
       await createScenarioResult({
         scenario_id: scenario.id,
         total_it_load_kw: result.totalItLoadKw,
@@ -199,13 +219,41 @@ export default function NewScenarioPage() {
   // Advance to next step after validating current step's fields
   const handleNext = async () => {
     const fields = STEPS[step].fields as readonly (keyof FormValues)[];
-    const valid = await form.trigger(fields as (keyof FormValues)[]);
+    const valid =
+      fields.length > 0
+        ? await form.trigger([...fields] as (keyof FormValues)[])
+        : true;
     if (valid) setStep((s) => s + 1);
   };
 
   const handleBack = () => setStep((s) => s - 1);
 
   const onSubmit = (values: FormValues) => {
+    // Validate facility fields when the toggle is on
+    if (facilityEnabled && hasFacility) {
+      let hasErrors = false;
+      if (!values.sqftPerFloor || values.sqftPerFloor <= 0) {
+        form.setError("sqftPerFloor", { message: "Must be greater than 0." });
+        hasErrors = true;
+      }
+      if (!values.floorLevel || values.floorLevel < 1) {
+        form.setError("floorLevel", { message: "Must be at least 1." });
+        hasErrors = true;
+      }
+      if (!values.floorsUsed || values.floorsUsed < 1) {
+        form.setError("floorsUsed", { message: "Must be at least 1." });
+        hasErrors = true;
+      }
+      if (!values.serverSpacingFt || values.serverSpacingFt <= 0) {
+        form.setError("serverSpacingFt", { message: "Must be greater than 0." });
+        hasErrors = true;
+      }
+      if (!values.ceilingHeightFt || values.ceilingHeightFt <= 0) {
+        form.setError("ceilingHeightFt", { message: "Must be greater than 0." });
+        hasErrors = true;
+      }
+      if (hasErrors) return;
+    }
     setSubmitError(null);
     mutation.mutate(values);
   };
@@ -268,6 +316,7 @@ export default function NewScenarioPage() {
             const Icon = s.icon;
             const done = i < step;
             const active = i === step;
+            const isFacilityStep = i === 4;
             return (
               <div key={s.label} className="flex items-center flex-1 last:flex-none">
                 <button
@@ -288,12 +337,17 @@ export default function NewScenarioPage() {
                       ? <CheckCircle2 className="h-4 w-4" />
                       : <Icon className="h-4 w-4" />}
                   </div>
-                  <span className={cn(
-                    "text-xs font-medium whitespace-nowrap hidden sm:block",
-                    active ? "text-primary" : done ? "text-primary/70" : "text-muted-foreground"
-                  )}>
-                    {s.label}
-                  </span>
+                  <div className="hidden sm:flex items-center gap-1">
+                    <span className={cn(
+                      "text-xs font-medium whitespace-nowrap",
+                      active ? "text-primary" : done ? "text-primary/70" : "text-muted-foreground"
+                    )}>
+                      {s.label}
+                    </span>
+                    {isFacilityStep && !hasFacility && (
+                      <span className="text-[9px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 rounded px-1 leading-tight">Pro</span>
+                    )}
+                  </div>
                 </button>
                 {i < STEPS.length - 1 && (
                   <div className={cn(
@@ -309,6 +363,7 @@ export default function NewScenarioPage() {
         {/* Form */}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
+
             {/* ── Step 1: Capacity ── */}
             {step === 0 && (
               <Card>
@@ -508,7 +563,154 @@ export default function NewScenarioPage() {
                       <FormMessage />
                     </FormItem>
                   )} />
+                </CardContent>
+              </Card>
+            )}
 
+            {/* ── Step 5: Facility Constraints ── */}
+            {step === 4 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-primary" />
+                    <CardTitle>Facility Constraints</CardTitle>
+                    {!hasFacility && (
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs font-semibold">
+                        Pro
+                      </Badge>
+                    )}
+                  </div>
+                  <CardDescription>
+                    Validate physical space and structural constraints for your data center design.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  {!hasFacility ? (
+                    /* ── Locked (Free plan) ── */
+                    <div className="flex flex-col items-center text-center py-10 px-6 rounded-xl border-2 border-dashed bg-muted/10 space-y-4">
+                      <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
+                        <Lock className="h-5 w-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm mb-1">Pro feature</p>
+                        <p className="text-sm text-muted-foreground max-w-xs">
+                          Upgrade to Pro to validate physical facility constraints like floor area, floor level, flooring type, server spacing, and ceiling height.
+                        </p>
+                      </div>
+                      <Link href="/billing">
+                        <Button size="sm" data-testid="btn-upgrade-facility">
+                          <ArrowUpRight className="h-4 w-4 mr-2" /> Upgrade to Pro
+                        </Button>
+                      </Link>
+                      <p className="text-xs text-muted-foreground">
+                        You can still run the analysis without facility constraints.
+                      </p>
+                    </div>
+                  ) : (
+                    /* ── Unlocked (Pro / Team / Enterprise) ── */
+                    <div className="space-y-5">
+                      {/* Toggle */}
+                      <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
+                        <Switch
+                          id="facility-toggle"
+                          checked={facilityEnabled}
+                          onCheckedChange={setFacilityEnabled}
+                          data-testid="switch-facility"
+                        />
+                        <label
+                          htmlFor="facility-toggle"
+                          className="text-sm font-medium cursor-pointer select-none"
+                        >
+                          Enable Facility Constraints Review
+                        </label>
+                      </div>
+
+                      {/* Fields — shown only when enabled */}
+                      {facilityEnabled && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="sqftPerFloor" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Sq ft per Floor</FormLabel>
+                                <FormControl>
+                                  <Input type="number" min="1" step="100" placeholder="e.g. 10000" {...field} data-testid="input-sqft" />
+                                </FormControl>
+                                <FormDescription>Usable floor area in sq ft</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )} />
+                            <FormField control={form.control} name="floorsUsed" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Floors Used</FormLabel>
+                                <FormControl>
+                                  <Input type="number" min="1" step="1" placeholder="e.g. 2" {...field} data-testid="input-floors-used" />
+                                </FormControl>
+                                <FormDescription>Number of floors in use</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )} />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="floorLevel" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Floor Level</FormLabel>
+                                <FormControl>
+                                  <Input type="number" min="1" step="1" placeholder="e.g. 1" {...field} data-testid="input-floor-level" />
+                                </FormControl>
+                                <FormDescription>Floor number (ground = 1)</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )} />
+                            <FormField control={form.control} name="flooringType" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Flooring Type</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger data-testid="select-flooring">
+                                      <SelectValue placeholder="Select flooring type" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="Slab">Slab</SelectItem>
+                                    <SelectItem value="Raised Floor">Raised Floor</SelectItem>
+                                    <SelectItem value="Structural Grid">Structural Grid</SelectItem>
+                                    <SelectItem value="Other">Other</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )} />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="serverSpacingFt" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Server Spacing (ft)</FormLabel>
+                                <FormControl>
+                                  <Input type="number" min="0.5" step="0.5" placeholder="e.g. 4" {...field} data-testid="input-spacing" />
+                                </FormControl>
+                                <FormDescription>Row-to-row aisle spacing</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )} />
+                            <FormField control={form.control} name="ceilingHeightFt" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Ceiling Height (ft)</FormLabel>
+                                <FormControl>
+                                  <Input type="number" min="1" step="0.5" placeholder="e.g. 12" {...field} data-testid="input-ceiling" />
+                                </FormControl>
+                                <FormDescription>Clear ceiling height</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Submit error shown on the final step */}
                   {submitError && (
                     <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
