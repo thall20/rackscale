@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarLayout } from "@/components/layout/SidebarLayout";
 import { useLocation, Link, useParams } from "wouter";
 import { useForm } from "react-hook-form";
@@ -86,6 +86,11 @@ export default function NewScenarioPage() {
   const { companyId, plan } = useCompanyPlan();
   const effectiveLimit = getScenarioLimit(plan);
   const hasFacility = canUseFacilityConstraints(plan);
+
+  // Auto-enable the facility toggle once the plan loads and confirms Pro+
+  useEffect(() => {
+    if (hasFacility) setFacilityEnabled(true);
+  }, [hasFacility]);
 
   const { data: allScenarios, isLoading: scenariosLoading } = useQuery({
     queryKey: ["allScenarios", companyId],
