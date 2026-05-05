@@ -18,6 +18,7 @@ import {
   ArrowLeft, Zap, ThermometerSnowflake, DollarSign,
   Activity, AlertTriangle, CheckCircle2, Lightbulb,
   GitCompare, Pencil, Download, FolderOpen,
+  Building2, Info,
 } from "lucide-react";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -48,6 +49,13 @@ function healthBarColor(score: number) {
   if (score >= 60) return "bg-amber-500";
   if (score >= 40) return "bg-orange-500";
   return "bg-destructive";
+}
+
+function fitStatusColor(status: string | null | undefined): string {
+  if (status === "Good Fit") return "text-green-600";
+  if (status === "Review Recommended") return "text-amber-600";
+  if (status === "High Risk") return "text-destructive";
+  return "text-muted-foreground";
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────
@@ -276,6 +284,116 @@ export default function ScenarioResultPage() {
                 <p className="text-sm text-muted-foreground leading-relaxed">{calc.recommendation}</p>
               </div>
             </div>
+
+            {/* ── Facility Constraints Review ── */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Facility Constraints Review
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!scenario.facility_constraints_enabled ? (
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground py-1">
+                    <Info className="h-4 w-4 shrink-0" />
+                    <span>Facility Constraints were not enabled for this scenario.</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* Stat grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Physical Fit</p>
+                        <p className={cn("text-sm font-semibold", fitStatusColor(scenario.scenario_results?.physical_fit_status))}>
+                          {scenario.scenario_results?.physical_fit_status ?? "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Available Sqft</p>
+                        <p className="text-sm font-semibold font-mono">
+                          {scenario.scenario_results?.total_available_sqft != null
+                            ? scenario.scenario_results.total_available_sqft.toLocaleString()
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rack Footprint</p>
+                        <p className="text-sm font-semibold font-mono">
+                          {scenario.scenario_results?.estimated_rack_footprint_sqft != null
+                            ? `${scenario.scenario_results.estimated_rack_footprint_sqft.toLocaleString()} sqft`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Space Used</p>
+                        <p className="text-sm font-semibold font-mono">
+                          {scenario.scenario_results?.space_utilization_percent != null
+                            ? `${scenario.scenario_results.space_utilization_percent}%`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Floor Level</p>
+                        <p className="text-sm font-semibold font-mono">
+                          {scenario.floor_level != null ? scenario.floor_level : "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Flooring</p>
+                        <p className="text-sm font-semibold">
+                          {scenario.flooring_type ?? "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Server Spacing</p>
+                        <p className="text-sm font-semibold font-mono">
+                          {scenario.server_spacing_ft != null ? `${scenario.server_spacing_ft} ft` : "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ceiling Height</p>
+                        <p className="text-sm font-semibold font-mono">
+                          {scenario.ceiling_height_ft != null ? `${scenario.ceiling_height_ft} ft` : "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Risk messages or Good Fit confirmation */}
+                    {scenario.scenario_results?.physical_fit_status === "Good Fit" ? (
+                      <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        <span>No major facility constraint risks identified in the preliminary review.</span>
+                      </div>
+                    ) : (scenario.scenario_results?.facility_risk_messages?.length ?? 0) > 0 ? (
+                      <Alert className="border-amber-400/50 bg-amber-50/50">
+                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                        <AlertTitle className="text-amber-800 text-sm">Facility Risk Flags</AlertTitle>
+                        <AlertDescription>
+                          <ul className="space-y-1.5 mt-1">
+                            {(scenario.scenario_results?.facility_risk_messages ?? []).map((msg, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <span className={cn(
+                                  "mt-1.5 h-1.5 w-1.5 rounded-full shrink-0",
+                                  msg.level === "critical" ? "bg-destructive" :
+                                  msg.level === "warning" ? "bg-amber-500" : "bg-blue-400"
+                                )} />
+                                <span>{msg.message}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </AlertDescription>
+                      </Alert>
+                    ) : null}
+
+                    {/* Disclaimer */}
+                    <p className="text-xs text-muted-foreground border-t pt-3">
+                      Facility review is for preliminary planning only and does not replace stamped engineering analysis.
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Input assumptions summary */}
             <Card>
