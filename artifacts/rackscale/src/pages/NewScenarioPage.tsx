@@ -7,6 +7,7 @@ import * as z from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createScenario, createScenarioResult, listAllScenariosWithProject } from "@/lib/supabase-projects";
 import { computeScenario } from "@/lib/calculations";
+import { calculateScenario } from "@/lib/calculateScenario";
 import { useCompanyPlan } from "@/hooks/useCompanyPlan";
 import { getScenarioLimit } from "@/lib/featureAccess";
 
@@ -114,7 +115,7 @@ export default function NewScenarioPage() {
         );
       }
 
-      // 1. Save scenario
+      // 1. Save scenario (facility constraints off by default until UI is added)
       const scenario = await createScenario({
         project_id: projectId,
         name: values.name,
@@ -130,9 +131,16 @@ export default function NewScenarioPage() {
         containment_type: values.containmentType,
         cost_per_mw: values.costPerMw,
         cost_per_rack: values.costPerRack,
+        facility_constraints_enabled: false,
+        sqft_per_floor: null,
+        floor_level: null,
+        floors_used: null,
+        flooring_type: null,
+        server_spacing_ft: null,
+        ceiling_height_ft: null,
       });
 
-      // 2. Compute results
+      // 2. Compute results — existing engine for core power/cost metrics
       const result = computeScenario({
         rackCount: values.rackCount,
         kwPerRack: values.kwPerRack,
@@ -147,7 +155,19 @@ export default function NewScenarioPage() {
         costPerRack: values.costPerRack,
       });
 
-      // 3. Save result
+      // 2b. Facility constraints engine — returns "Not Evaluated" outputs when disabled
+      const facilityResult = calculateScenario({
+        rackCount: values.rackCount,
+        kwPerRack: values.kwPerRack,
+        growthBufferPercent: values.growthBufferPct,
+        redundancyType: values.redundancyType,
+        coolingType: values.coolingType,
+        costPerMw: values.costPerMw,
+        costPerRack: values.costPerRack,
+        facilityConstraintsEnabled: false,
+      });
+
+      // 3. Save result with facility constraint outputs
       await createScenarioResult({
         scenario_id: scenario.id,
         total_it_load_kw: result.totalItLoadKw,
@@ -158,6 +178,11 @@ export default function NewScenarioPage() {
         efficiency_rating: result.efficiencyRating,
         risk_flags: result.riskFlags,
         overall_risk_level: result.overallRiskLevel,
+        total_available_sqft: facilityResult.totalAvailableSqft,
+        estimated_rack_footprint_sqft: facilityResult.estimatedRackFootprintSqft,
+        space_utilization_percent: facilityResult.spaceUtilizationPercent,
+        physical_fit_status: facilityResult.physicalFitStatus,
+        facility_risk_messages: facilityResult.facilityRiskMessages,
       });
 
       return scenario;

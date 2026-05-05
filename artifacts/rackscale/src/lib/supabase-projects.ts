@@ -76,8 +76,7 @@ export type PhysicalFitStatus =
   | "Not Evaluated";
 
 export type FacilityRiskMessage = {
-  code: string;
-  severity: "info" | "warning" | "critical";
+  level: "info" | "warning" | "critical";
   message: string;
 };
 
