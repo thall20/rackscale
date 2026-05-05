@@ -11,6 +11,7 @@ import ProjectsPage from "@/pages/ProjectsPage";
 import NewProjectPage from "@/pages/NewProjectPage";
 import ProjectDetailPage from "@/pages/ProjectDetailPage";
 import NewScenarioPage from "@/pages/NewScenarioPage";
+import EditScenarioPage from "@/pages/EditScenarioPage";
 import ScenarioResultPage from "@/pages/ScenarioResultPage";
 import CompareScenariosPage from "@/pages/CompareScenariosPage";
 import ExportReportPage from "@/pages/ExportReportPage";
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/projects/new" component={NewProjectPage} />
       <Route path="/projects/:id" component={ProjectDetailPage} />
       <Route path="/projects/:projectId/scenarios/new" component={NewScenarioPage} />
+      <Route path="/projects/:projectId/scenarios/:id/edit" component={EditScenarioPage} />
       <Route path="/projects/:projectId/scenarios/:id" component={ScenarioResultPage} />
       <Route path="/projects/:projectId/compare" component={CompareScenariosPage} />
       <Route path="/projects/:projectId/scenarios/:id/report" component={ExportReportPage} />

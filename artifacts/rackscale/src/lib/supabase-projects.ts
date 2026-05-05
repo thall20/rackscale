@@ -216,6 +216,22 @@ export async function createScenario(input: CreateScenarioInput): Promise<Scenar
   return data as Scenario;
 }
 
+export type UpdateScenarioInput = Omit<CreateScenarioInput, "project_id">;
+
+export async function updateScenario(
+  id: string,
+  input: UpdateScenarioInput
+): Promise<Scenario> {
+  const { data, error } = await client()
+    .from("scenarios")
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data as Scenario;
+}
+
 export async function createScenarioResult(
   input: CreateScenarioResultInput
 ): Promise<ScenarioResultRow> {

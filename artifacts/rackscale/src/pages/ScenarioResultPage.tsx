@@ -6,6 +6,8 @@ import { getScenarioWithResult, getProject } from "@/lib/supabase-projects";
 import { useAuth } from "@/contexts/useAuth";
 import { calculateScenario } from "@/lib/calculateScenario";
 import type { RedundancyType, CoolingType, FlooringType } from "@/lib/calculateScenario";
+import { useCompanyPlan } from "@/hooks/useCompanyPlan";
+import { canEditScenario } from "@/lib/featureAccess";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,6 +67,8 @@ export default function ScenarioResultPage() {
   const projectId = params.projectId as string;
   const id = params.id as string;
   const { companyId } = useAuth();
+  const { plan } = useCompanyPlan();
+  const canEdit = canEditScenario(plan);
 
   const enabled = !!(projectId && id && companyId);
 
@@ -142,9 +146,17 @@ export default function ScenarioResultPage() {
                 <GitCompare className="h-4 w-4 mr-2" /> Compare Scenarios
               </Button>
             </Link>
-            <Button variant="outline" size="sm" disabled data-testid="btn-edit">
-              <Pencil className="h-4 w-4 mr-2" /> Edit Scenario
-            </Button>
+            {canEdit ? (
+              <Link href={`/projects/${projectId}/scenarios/${id}/edit`}>
+                <Button variant="outline" size="sm" data-testid="btn-edit">
+                  <Pencil className="h-4 w-4 mr-2" /> Edit Scenario
+                </Button>
+              </Link>
+            ) : (
+              <Button variant="outline" size="sm" disabled data-testid="btn-edit">
+                <Pencil className="h-4 w-4 mr-2" /> Edit Scenario
+              </Button>
+            )}
             <Link href={`/projects/${projectId}/scenarios/${id}/report`}>
               <Button variant="outline" size="sm" data-testid="btn-export">
                 <Download className="h-4 w-4 mr-2" /> Export Report

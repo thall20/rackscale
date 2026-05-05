@@ -6,6 +6,12 @@ function resolve(plan: CompanyPlan | null | undefined): CompanyPlan {
   return "Free";
 }
 
+/** Edit Scenario: Pro, Team, Enterprise */
+export function canEditScenario(plan: CompanyPlan | null | undefined): boolean {
+  const p = resolve(plan);
+  return p === "Pro" || p === "Team" || p === "Enterprise";
+}
+
 /** Facility Constraints: Pro, Team, Enterprise */
 export function canUseFacilityConstraints(plan: CompanyPlan | null | undefined): boolean {
   const p = resolve(plan);
