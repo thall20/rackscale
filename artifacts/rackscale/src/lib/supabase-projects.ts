@@ -1,5 +1,31 @@
 import { supabase } from "./supabase";
 import type { RiskFlag } from "./calculations";
+import type { CompanyPlan, CompanyPlanStatus } from "./plans";
+
+// ── Company ───────────────────────────────────────────────────────────────────
+
+export type Company = {
+  id: string;
+  name: string;
+  domain: string | null;
+  plan: CompanyPlan;
+  plan_status: CompanyPlanStatus;
+  /** Max scenarios allowed. -1 = unlimited. */
+  scenario_limit: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getCompany(companyId: string): Promise<Company> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { data, error } = await supabase
+    .from("companies")
+    .select("id, name, domain, plan, plan_status, scenario_limit, created_at, updated_at")
+    .eq("id", companyId)
+    .single();
+  if (error) throw new Error(error.message);
+  return data as Company;
+}
 
 export type Project = {
   id: string;

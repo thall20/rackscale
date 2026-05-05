@@ -1,12 +1,14 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { getCompany, type Company } from "@/lib/supabase-projects";
 
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   loading: boolean;
   companyId: string | null;
+  company: Company | null;
   profileError: string | null;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, companyName: string) => Promise<{ error: string | null }>;
@@ -40,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
 
   const bootstrap = useCallback(async (s: Session | null) => {
@@ -49,8 +52,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { companyId: cid, error } = await ensureProfile(s.user);
       setCompanyId(cid);
       setProfileError(error);
+      if (cid) {
+        try {
+          const co = await getCompany(cid);
+          setCompany(co);
+        } catch {
+          setCompany(null);
+        }
+      } else {
+        setCompany(null);
+      }
     } else {
       setCompanyId(null);
+      setCompany(null);
       setProfileError(null);
     }
     setLoading(false);
@@ -95,11 +109,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return;
     await supabase.auth.signOut();
     setCompanyId(null);
+    setCompany(null);
     setProfileError(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, companyId, profileError, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, companyId, company, profileError, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

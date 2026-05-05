@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createScenario, createScenarioResult, listAllScenariosWithProject } from "@/lib/supabase-projects";
 import { computeScenario } from "@/lib/calculations";
 import { useAuth } from "@/contexts/AuthContext";
-import { getCurrentPlan, isAtScenarioLimit, FREE_SCENARIO_LIMIT } from "@/lib/plans";
+import { isAtScenarioLimit, FREE_SCENARIO_LIMIT } from "@/lib/plans";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -71,8 +71,8 @@ export default function NewScenarioPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // ── Plan gate ────────────────────────────────────────────────────────────
-  const { companyId } = useAuth();
-  const currentPlan = getCurrentPlan();
+  const { companyId, company } = useAuth();
+  const scenarioLimit = company?.scenario_limit ?? FREE_SCENARIO_LIMIT;
 
   const { data: allScenarios, isLoading: scenariosLoading } = useQuery({
     queryKey: ["allScenarios", companyId],
@@ -81,7 +81,7 @@ export default function NewScenarioPage() {
   });
 
   const scenarioCount = allScenarios?.length ?? 0;
-  const atLimit = !scenariosLoading && isAtScenarioLimit(currentPlan, scenarioCount);
+  const atLimit = !scenariosLoading && isAtScenarioLimit(scenarioLimit, scenarioCount);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
