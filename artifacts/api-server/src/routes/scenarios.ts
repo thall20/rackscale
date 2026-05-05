@@ -12,6 +12,59 @@ import {
   CompareScenariosQueryParams,
 } from "@workspace/api-zod";
 import { computeScenarioResults } from "../lib/calculations";
+import { getSupabaseAdmin } from "../lib/supabase-admin";
+
+const FREE_SCENARIO_LIMIT = 3;
+
+/**
+ * Enforce plan-based scenario limits.
+ * Returns an error string when the request should be blocked, null otherwise.
+ * Requires a valid Supabase Bearer token in the Authorization header.
+ */
+async function checkScenarioLimit(authHeader: string | undefined): Promise<string | null> {
+  if (!authHeader?.startsWith("Bearer ")) return null; // no token → skip (handled by Supabase RLS)
+  const token = authHeader.slice(7);
+
+  const admin = getSupabaseAdmin();
+
+  // 1. Verify token
+  const { data: userData, error: userErr } = await admin.auth.getUser(token);
+  if (userErr || !userData.user) return null; // invalid token → let Supabase RLS handle it
+
+  // 2. Get company_id via profile
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("company_id")
+    .eq("id", userData.user.id)
+    .maybeSingle() as { data: { company_id: string } | null };
+  if (!profile?.company_id) return null;
+
+  // 3. Get company plan
+  const { data: company } = await admin
+    .from("companies")
+    .select("plan, scenario_limit")
+    .eq("id", profile.company_id)
+    .maybeSingle() as { data: { plan: string; scenario_limit: number } | null };
+  if (!company) return null;
+
+  // 4. Paid plans have no limit
+  if (company.plan !== "Free") return null;
+
+  // 5. Count existing scenarios for this company (via projects)
+  const { count } = await admin
+    .from("scenarios")
+    .select("id", { count: "exact", head: true })
+    .in(
+      "project_id",
+      (await admin.from("projects").select("id").eq("company_id", profile.company_id)).data?.map((p: { id: string }) => p.id) ?? []
+    ) as { count: number | null };
+
+  const limit = company.scenario_limit ?? FREE_SCENARIO_LIMIT;
+  if ((count ?? 0) >= limit) {
+    return `You've reached the Free plan limit of ${limit} scenarios. Upgrade to Pro to create unlimited scenarios and unlock advanced design validation.`;
+  }
+  return null;
+}
 
 const router: IRouter = Router();
 
@@ -54,6 +107,13 @@ router.post("/projects/:projectId/scenarios", async (req, res): Promise<void> =>
   const parsed = CreateScenarioBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  // Plan-based limit enforcement
+  const limitError = await checkScenarioLimit(req.headers.authorization);
+  if (limitError) {
+    res.status(403).json({ error: limitError });
     return;
   }
 

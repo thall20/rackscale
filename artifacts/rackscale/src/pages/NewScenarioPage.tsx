@@ -7,8 +7,8 @@ import * as z from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createScenario, createScenarioResult, listAllScenariosWithProject } from "@/lib/supabase-projects";
 import { computeScenario } from "@/lib/calculations";
-import { useAuth } from "@/contexts/AuthContext";
-import { isAtScenarioLimit, FREE_SCENARIO_LIMIT } from "@/lib/plans";
+import { useCompanyPlan } from "@/hooks/useCompanyPlan";
+import { getScenarioLimit } from "@/lib/featureAccess";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -71,8 +71,8 @@ export default function NewScenarioPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // ── Plan gate ────────────────────────────────────────────────────────────
-  const { companyId, company } = useAuth();
-  const scenarioLimit = company?.scenario_limit ?? FREE_SCENARIO_LIMIT;
+  const { companyId, plan } = useCompanyPlan();
+  const effectiveLimit = getScenarioLimit(plan); // null = unlimited (paid plans)
 
   const { data: allScenarios, isLoading: scenariosLoading } = useQuery({
     queryKey: ["allScenarios", companyId],
@@ -81,7 +81,7 @@ export default function NewScenarioPage() {
   });
 
   const scenarioCount = allScenarios?.length ?? 0;
-  const atLimit = !scenariosLoading && isAtScenarioLimit(scenarioLimit, scenarioCount);
+  const atLimit = !scenariosLoading && effectiveLimit !== null && scenarioCount >= effectiveLimit;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -105,6 +105,15 @@ export default function NewScenarioPage() {
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
+      // 0. Pre-flight: re-check limit at submission time (defense-in-depth)
+      const fresh = await listAllScenariosWithProject(100);
+      const freshLimit = getScenarioLimit(plan);
+      if (freshLimit !== null && fresh.length >= freshLimit) {
+        throw new Error(
+          `You've reached the Free plan limit of ${freshLimit} scenarios. Upgrade to Pro to create unlimited scenarios and unlock advanced design validation.`
+        );
+      }
+
       // 1. Save scenario
       const scenario = await createScenario({
         project_id: projectId,
@@ -193,12 +202,8 @@ export default function NewScenarioPage() {
               <Lock className="h-7 w-7 text-amber-600" />
             </div>
             <h2 className="text-2xl font-bold mb-2">Scenario limit reached</h2>
-            <p className="text-muted-foreground max-w-sm mb-1">
-              Your <strong>Free plan</strong> includes {FREE_SCENARIO_LIMIT} scenarios.
-              You've used <strong>{scenarioCount}</strong>.
-            </p>
             <p className="text-muted-foreground max-w-sm mb-8">
-              Upgrade to <strong>Pro</strong> for unlimited scenarios, PDF export, and more.
+              You've reached the Free plan limit of {effectiveLimit} scenarios. Upgrade to Pro to create unlimited scenarios and unlock advanced design validation.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link href="/billing">
