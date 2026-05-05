@@ -635,7 +635,7 @@ export default function NewScenarioPage() {
                                 <FormControl>
                                   <Input type="number" min="1" step="100" placeholder="e.g. 10000" {...field} data-testid="input-sqft" />
                                 </FormControl>
-                                <FormDescription>Usable floor area in sq ft</FormDescription>
+                                <FormDescription>Usable floor area available for racks and supporting infrastructure.</FormDescription>
                                 <FormMessage />
                               </FormItem>
                             )} />
@@ -645,7 +645,7 @@ export default function NewScenarioPage() {
                                 <FormControl>
                                   <Input type="number" min="1" step="1" placeholder="e.g. 2" {...field} data-testid="input-floors-used" />
                                 </FormControl>
-                                <FormDescription>Number of floors in use</FormDescription>
+                                <FormDescription>Number of floors included in this scenario.</FormDescription>
                                 <FormMessage />
                               </FormItem>
                             )} />
@@ -658,7 +658,7 @@ export default function NewScenarioPage() {
                                 <FormControl>
                                   <Input type="number" min="1" step="1" placeholder="e.g. 1" {...field} data-testid="input-floor-level" />
                                 </FormControl>
-                                <FormDescription>Floor number (ground = 1)</FormDescription>
+                                <FormDescription>The building level where this deployment is located.</FormDescription>
                                 <FormMessage />
                               </FormItem>
                             )} />
@@ -678,6 +678,7 @@ export default function NewScenarioPage() {
                                     <SelectItem value="Other">Other</SelectItem>
                                   </SelectContent>
                                 </Select>
+                                <FormDescription>Used to flag potential structural or raised-floor review needs.</FormDescription>
                                 <FormMessage />
                               </FormItem>
                             )} />
@@ -690,7 +691,7 @@ export default function NewScenarioPage() {
                                 <FormControl>
                                   <Input type="number" min="0.5" step="0.5" placeholder="e.g. 4" {...field} data-testid="input-spacing" />
                                 </FormControl>
-                                <FormDescription>Row-to-row aisle spacing</FormDescription>
+                                <FormDescription>Approximate spacing between racks/rows for access, airflow, and serviceability.</FormDescription>
                                 <FormMessage />
                               </FormItem>
                             )} />
@@ -700,7 +701,7 @@ export default function NewScenarioPage() {
                                 <FormControl>
                                   <Input type="number" min="1" step="0.5" placeholder="e.g. 12" {...field} data-testid="input-ceiling" />
                                 </FormControl>
-                                <FormDescription>Clear ceiling height</FormDescription>
+                                <FormDescription>Used to identify potential airflow and cooling constraints.</FormDescription>
                                 <FormMessage />
                               </FormItem>
                             )} />
@@ -709,6 +710,11 @@ export default function NewScenarioPage() {
                       )}
                     </div>
                   )}
+
+                  {/* Disclaimer */}
+                  <p className="text-xs text-muted-foreground border-t pt-4">
+                    Facility Constraints are intended for preliminary planning review and do not replace stamped engineering analysis.
+                  </p>
 
                   {/* Submit error shown on the final step */}
                   {submitError && (
