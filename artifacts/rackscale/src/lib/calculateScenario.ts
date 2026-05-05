@@ -1,6 +1,9 @@
 export type RedundancyType = "N" | "N+1" | "2N";
 export type CoolingType = "air" | "hybrid" | "liquid";
 export type RiskLevel = "High Risk" | "Medium Risk" | "Cost Risk" | "Planning Risk" | "Valid Design";
+export type FlooringType = "Slab" | "Raised Floor" | "Structural Grid" | "Other";
+export type PhysicalFitStatus = "Good Fit" | "Review Recommended" | "High Risk" | "Not Evaluated";
+export type FacilityRiskMessage = { level: "info" | "warning" | "critical"; message: string };
 
 export type ScenarioInput = {
   rackCount: number;
@@ -10,6 +13,14 @@ export type ScenarioInput = {
   coolingType: CoolingType;
   costPerMw: number;
   costPerRack: number;
+  // ── Facility Constraints (all optional) ──────────────────────────────────
+  facilityConstraintsEnabled?: boolean;
+  sqftPerFloor?: number | null;
+  floorLevel?: number | null;
+  floorsUsed?: number | null;
+  flooringType?: FlooringType | null;
+  serverSpacingFt?: number | null;
+  ceilingHeightFt?: number | null;
 };
 
 export type ScenarioOutput = {
@@ -23,6 +34,12 @@ export type ScenarioOutput = {
   riskLevel: RiskLevel;
   riskMessages: string[];
   recommendation: string;
+  // ── Facility Constraints outputs ─────────────────────────────────────────
+  totalAvailableSqft: number | null;
+  estimatedRackFootprintSqft: number | null;
+  spaceUtilizationPercent: number | null;
+  physicalFitStatus: PhysicalFitStatus;
+  facilityRiskMessages: FacilityRiskMessage[];
 };
 
 const REDUNDANCY_MULTIPLIERS: Record<RedundancyType, number> = {
@@ -31,8 +48,123 @@ const REDUNDANCY_MULTIPLIERS: Record<RedundancyType, number> = {
   "2N": 2,
 };
 
+const RACK_WIDTH_FT = 2;
+const RACK_DEPTH_FT = 3;
+const DEFAULT_AISLE_FT = 3;
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function evaluateFacilityConstraints(
+  input: ScenarioInput
+): Pick<
+  ScenarioOutput,
+  | "totalAvailableSqft"
+  | "estimatedRackFootprintSqft"
+  | "spaceUtilizationPercent"
+  | "physicalFitStatus"
+  | "facilityRiskMessages"
+> {
+  const NOT_EVALUATED = {
+    totalAvailableSqft: null,
+    estimatedRackFootprintSqft: null,
+    spaceUtilizationPercent: null,
+    physicalFitStatus: "Not Evaluated" as PhysicalFitStatus,
+    facilityRiskMessages: [] as FacilityRiskMessage[],
+  };
+
+  const {
+    facilityConstraintsEnabled,
+    sqftPerFloor,
+    floorsUsed,
+    floorLevel,
+    flooringType,
+    serverSpacingFt,
+    ceilingHeightFt,
+    rackCount,
+    kwPerRack,
+  } = input;
+
+  // Guard: only run when explicitly enabled and minimum required fields are present
+  if (
+    !facilityConstraintsEnabled ||
+    !sqftPerFloor ||
+    sqftPerFloor <= 0 ||
+    !floorsUsed ||
+    floorsUsed <= 0
+  ) {
+    return NOT_EVALUATED;
+  }
+
+  // ── Space calculations ───────────────────────────────────────────────────
+  const totalAvailableSqft = round2(sqftPerFloor * floorsUsed);
+
+  // Rack footprint: each rack occupies its physical footprint plus a share of
+  // the adjacent aisle. Model: rack width × (rack depth + aisle spacing).
+  const aisleSpacing = serverSpacingFt != null && serverSpacingFt > 0
+    ? serverSpacingFt
+    : DEFAULT_AISLE_FT;
+  const sqftPerRack = RACK_WIDTH_FT * (RACK_DEPTH_FT + aisleSpacing);
+  const estimatedRackFootprintSqft = round2(rackCount * sqftPerRack);
+
+  const spaceUtilizationPercent = round2(
+    (estimatedRackFootprintSqft / totalAvailableSqft) * 100
+  );
+
+  // ── Physical fit status ──────────────────────────────────────────────────
+  let physicalFitStatus: PhysicalFitStatus;
+  if (spaceUtilizationPercent > 90) {
+    physicalFitStatus = "High Risk";
+  } else if (spaceUtilizationPercent > 70) {
+    physicalFitStatus = "Review Recommended";
+  } else {
+    physicalFitStatus = "Good Fit";
+  }
+
+  // ── Facility risk messages ───────────────────────────────────────────────
+  const facilityRiskMessages: FacilityRiskMessage[] = [];
+
+  if (spaceUtilizationPercent > 90) {
+    facilityRiskMessages.push({
+      level: "critical",
+      message: `Rack footprint uses ${spaceUtilizationPercent}% of available floor space — physical fit is infeasible. Reduce rack count or expand floor area.`,
+    });
+  } else if (spaceUtilizationPercent > 70) {
+    facilityRiskMessages.push({
+      level: "warning",
+      message: `Rack footprint uses ${spaceUtilizationPercent}% of available floor space — limited room for hot/cold aisle clearances and future expansion.`,
+    });
+  }
+
+  if (flooringType === "Slab" && kwPerRack > 15) {
+    facilityRiskMessages.push({
+      level: "warning",
+      message: `Slab flooring at ${kwPerRack} kW/rack limits under-floor cable management and cooling distribution — raised floor or structural grid is recommended.`,
+    });
+  }
+
+  if (ceilingHeightFt != null && ceilingHeightFt < 10) {
+    facilityRiskMessages.push({
+      level: "warning",
+      message: `Ceiling height of ${ceilingHeightFt} ft may be insufficient for standard 7 ft racks plus overhead cable tray clearances.`,
+    });
+  }
+
+  if (floorLevel != null && floorLevel > 1) {
+    facilityRiskMessages.push({
+      level: "info",
+      message: `Scenario is planned for floor level ${floorLevel} — verify structural load capacity for rack weight and power distribution routing.`,
+    });
+  }
+
+  return {
+    totalAvailableSqft,
+    estimatedRackFootprintSqft,
+    spaceUtilizationPercent,
+    physicalFitStatus,
+    facilityRiskMessages,
+  };
 }
 
 export function calculateScenario(input: ScenarioInput): ScenarioOutput {
@@ -121,6 +253,9 @@ export function calculateScenario(input: ScenarioInput): ScenarioOutput {
       "Design is within all engineering tolerances. Proceed with detailed infrastructure planning.";
   }
 
+  // ── Facility constraints ─────────────────────────────────────────────────
+  const facilityOutput = evaluateFacilityConstraints(input);
+
   return {
     itLoadKw,
     growthAdjustedKw,
@@ -132,5 +267,6 @@ export function calculateScenario(input: ScenarioInput): ScenarioOutput {
     riskLevel,
     riskMessages,
     recommendation,
+    ...facilityOutput,
   };
 }
