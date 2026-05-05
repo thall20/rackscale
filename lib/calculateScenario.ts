@@ -48,9 +48,6 @@ const REDUNDANCY_MULTIPLIERS: Record<RedundancyType, number> = {
   "2N": 2,
 };
 
-const RACK_WIDTH_FT = 2;
-const RACK_DEPTH_FT = 3;
-const DEFAULT_AISLE_FT = 3;
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -84,6 +81,7 @@ function evaluateFacilityConstraints(
     ceilingHeightFt,
     rackCount,
     kwPerRack,
+    coolingType,
   } = input;
 
   // Guard: only run when explicitly enabled and all required fields are present.
@@ -120,50 +118,79 @@ function evaluateFacilityConstraints(
   const spaceUtilizationPercent =
     Math.round((estimatedRackFootprintSqft / totalAvailableSqft) * 1000) / 10;
 
-  // ── Physical fit status ──────────────────────────────────────────────────
-  let physicalFitStatus: PhysicalFitStatus;
-  if (spaceUtilizationPercent > 90) {
-    physicalFitStatus = "High Risk";
-  } else if (spaceUtilizationPercent > 70) {
-    physicalFitStatus = "Review Recommended";
-  } else {
-    physicalFitStatus = "Good Fit";
-  }
-
   // ── Facility risk messages ───────────────────────────────────────────────
   const facilityRiskMessages: FacilityRiskMessage[] = [];
 
-  if (spaceUtilizationPercent > 90) {
+  // Rule 1 — space utilization critical threshold
+  if (spaceUtilizationPercent > 85) {
     facilityRiskMessages.push({
       level: "critical",
-      message: `Rack footprint uses ${spaceUtilizationPercent}% of available floor space — physical fit is infeasible. Reduce rack count or expand floor area.`,
+      message: "High Risk: Rack layout may exceed practical floor space utilization.",
     });
-  } else if (spaceUtilizationPercent > 70) {
+  } else if (spaceUtilizationPercent >= 70) {
+    // Rule 2 — space utilization elevated threshold (70–85 inclusive)
     facilityRiskMessages.push({
       level: "warning",
-      message: `Rack footprint uses ${spaceUtilizationPercent}% of available floor space — limited room for hot/cold aisle clearances and future expansion.`,
+      message: "Planning Risk: Floor space utilization is high and should be reviewed.",
     });
   }
 
-  if (flooringType === "Slab" && kwPerRack > 15) {
+  // Rule 3 — server row spacing too tight
+  if (serverSpacingFt < 3) {
     facilityRiskMessages.push({
       level: "warning",
-      message: `Slab flooring at ${kwPerRack} kW/rack limits under-floor cable management and cooling distribution — raised floor or structural grid is recommended.`,
+      message: "Spacing Risk: Server spacing may be too tight for service access and airflow.",
     });
   }
 
-  if (ceilingHeightFt != null && ceilingHeightFt < 10) {
+  // Rule 4 — low ceiling with air cooling
+  if (ceilingHeightFt != null && ceilingHeightFt < 10 && coolingType === "air") {
     facilityRiskMessages.push({
       level: "warning",
-      message: `Ceiling height of ${ceilingHeightFt} ft may be insufficient for standard 7 ft racks plus overhead cable tray clearances.`,
+      message: "Cooling Risk: Low ceiling height may reduce airflow effectiveness for air cooling.",
     });
   }
 
-  if (floorLevel != null && floorLevel > 1) {
+  // Rule 5 — low ceiling with high-density racks
+  if (ceilingHeightFt != null && ceilingHeightFt < 12 && kwPerRack > 20) {
     facilityRiskMessages.push({
-      level: "info",
-      message: `Scenario is planned for floor level ${floorLevel} — verify structural load capacity for rack weight and power distribution routing.`,
+      level: "warning",
+      message: "Cooling Risk: Ceiling height may limit airflow performance for high-density racks.",
     });
+  }
+
+  // Rule 6 — slab flooring with high-density racks
+  if (flooringType === "Slab" && kwPerRack > 30) {
+    facilityRiskMessages.push({
+      level: "warning",
+      message: "Structural Review: High-density rack loads on slab flooring should be reviewed.",
+    });
+  }
+
+  // Rule 7 — raised floor with high-density racks
+  if (flooringType === "Raised Floor" && kwPerRack > 30) {
+    facilityRiskMessages.push({
+      level: "warning",
+      message: "Flooring Risk: Raised floor systems may need structural validation for high-density racks.",
+    });
+  }
+
+  // Rule 8 — upper floor with high-density racks
+  if (floorLevel != null && floorLevel > 1 && kwPerRack > 30) {
+    facilityRiskMessages.push({
+      level: "warning",
+      message: "Structural Review: Upper-floor high-density deployments may require additional load analysis.",
+    });
+  }
+
+  // ── Physical fit status ──────────────────────────────────────────────────
+  let physicalFitStatus: PhysicalFitStatus;
+  if (facilityRiskMessages.some((m) => m.message.startsWith("High Risk"))) {
+    physicalFitStatus = "High Risk";
+  } else if (facilityRiskMessages.length > 0) {
+    physicalFitStatus = "Review Recommended";
+  } else {
+    physicalFitStatus = "Good Fit";
   }
 
   return {
@@ -238,6 +265,9 @@ export function calculateScenario(input: ScenarioInput): ScenarioOutput {
 
   designHealthScore = Math.max(0, designHealthScore);
 
+  // ── Facility constraints (computed before recommendation so messages can be included) ──
+  const facilityOutput = evaluateFacilityConstraints(input);
+
   // ── Recommendation ───────────────────────────────────────────────────────
   let recommendation: string;
 
@@ -261,8 +291,13 @@ export function calculateScenario(input: ScenarioInput): ScenarioOutput {
       "Design is within all engineering tolerances. Proceed with detailed infrastructure planning.";
   }
 
-  // ── Facility constraints ─────────────────────────────────────────────────
-  const facilityOutput = evaluateFacilityConstraints(input);
+  // Append facility risk messages to the recommendation when present.
+  if (facilityOutput.facilityRiskMessages.length > 0) {
+    const facilityNotes = facilityOutput.facilityRiskMessages
+      .map((m) => m.message)
+      .join(" ");
+    recommendation += ` Facility review required: ${facilityNotes}`;
+  }
 
   return {
     itLoadKw,
