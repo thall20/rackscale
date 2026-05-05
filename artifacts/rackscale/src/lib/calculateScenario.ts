@@ -86,31 +86,39 @@ function evaluateFacilityConstraints(
     kwPerRack,
   } = input;
 
-  // Guard: only run when explicitly enabled and minimum required fields are present
+  // Guard: only run when explicitly enabled and all required fields are present.
+  // serverSpacingFt is required (not defaulted) because it directly drives the
+  // footprint formula and an assumption here would silently skew results.
   if (
     !facilityConstraintsEnabled ||
     !sqftPerFloor ||
     sqftPerFloor <= 0 ||
     !floorsUsed ||
-    floorsUsed <= 0
+    floorsUsed <= 0 ||
+    serverSpacingFt == null ||
+    serverSpacingFt <= 0 ||
+    !rackCount ||
+    rackCount <= 0
   ) {
     return NOT_EVALUATED;
   }
 
   // ── Space calculations ───────────────────────────────────────────────────
-  const totalAvailableSqft = round2(sqftPerFloor * floorsUsed);
+  // NOTE: These are MVP planning assumptions for early-stage feasibility review
+  // and do not replace stamped engineering analysis.
 
-  // Rack footprint: each rack occupies its physical footprint plus a share of
-  // the adjacent aisle. Model: rack width × (rack depth + aisle spacing).
-  const aisleSpacing = serverSpacingFt != null && serverSpacingFt > 0
-    ? serverSpacingFt
-    : DEFAULT_AISLE_FT;
-  const sqftPerRack = RACK_WIDTH_FT * (RACK_DEPTH_FT + aisleSpacing);
-  const estimatedRackFootprintSqft = round2(rackCount * sqftPerRack);
+  // Total usable floor area across all occupied floors.
+  const totalAvailableSqft = Math.round(sqftPerFloor * floorsUsed);
 
-  const spaceUtilizationPercent = round2(
-    (estimatedRackFootprintSqft / totalAvailableSqft) * 100
-  );
+  // Per-rack footprint model: 25 sq ft base (rack body + immediate clearance)
+  // plus 4 sq ft per foot of server row spacing (hot/cold aisle contribution).
+  const estimatedSqftPerRack = 25 + serverSpacingFt * 4;
+  const estimatedRackFootprintSqft = Math.round(rackCount * estimatedSqftPerRack);
+
+  // Space utilization: rack footprint as a percentage of total available area.
+  // Rounded to 1 decimal place for display precision.
+  const spaceUtilizationPercent =
+    Math.round((estimatedRackFootprintSqft / totalAvailableSqft) * 1000) / 10;
 
   // ── Physical fit status ──────────────────────────────────────────────────
   let physicalFitStatus: PhysicalFitStatus;
