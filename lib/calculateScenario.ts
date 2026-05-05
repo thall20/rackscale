@@ -254,19 +254,47 @@ export function calculateScenario(input: ScenarioInput): ScenarioOutput {
     );
   }
 
+  // ── Facility constraints (computed before health score so it can influence riskLevel and scoring) ──
+  const facilityOutput = evaluateFacilityConstraints(input);
+
+  // Update riskLevel based on facility physicalFitStatus
+  if (facilityOutput.physicalFitStatus === "High Risk" && riskLevel !== "High Risk") {
+    riskLevel = "High Risk";
+  } else if (
+    facilityOutput.facilityRiskMessages.length >= 2 &&
+    riskLevel !== "High Risk" &&
+    riskLevel !== "Medium Risk"
+  ) {
+    riskLevel = "Medium Risk";
+  }
+
   // ── Design health score ──────────────────────────────────────────────────
   let designHealthScore = 100;
 
+  // Existing power/cooling/planning deductions
   if (riskLevel === "High Risk") designHealthScore -= 25;
   if (riskLevel === "Medium Risk") designHealthScore -= 15;
   if (riskLevel === "Cost Risk") designHealthScore -= 10;
   if (growthBufferPercent < 10) designHealthScore -= 15;
   if (redundancyType === "2N") designHealthScore -= 10;
 
-  designHealthScore = Math.max(0, designHealthScore);
+  // Facility constraint deductions — only applied when constraints are enabled and evaluated
+  if (input.facilityConstraintsEnabled && facilityOutput.physicalFitStatus !== "Not Evaluated") {
+    const { spaceUtilizationPercent } = facilityOutput;
+    const { serverSpacingFt, ceilingHeightFt, flooringType, floorLevel } = input;
 
-  // ── Facility constraints (computed before recommendation so messages can be included) ──
-  const facilityOutput = evaluateFacilityConstraints(input);
+    if (spaceUtilizationPercent !== null && spaceUtilizationPercent > 85) designHealthScore -= 20;
+    else if (spaceUtilizationPercent !== null && spaceUtilizationPercent >= 70) designHealthScore -= 10;
+
+    if (serverSpacingFt != null && serverSpacingFt < 3) designHealthScore -= 10;
+    if (ceilingHeightFt != null && ceilingHeightFt < 10 && coolingType === "air") designHealthScore -= 10;
+    if (ceilingHeightFt != null && ceilingHeightFt < 12 && kwPerRack > 20) designHealthScore -= 10;
+    if (flooringType === "Slab" && kwPerRack > 30) designHealthScore -= 10;
+    if (flooringType === "Raised Floor" && kwPerRack > 30) designHealthScore -= 10;
+    if (floorLevel != null && floorLevel > 1 && kwPerRack > 30) designHealthScore -= 10;
+  }
+
+  designHealthScore = Math.max(0, Math.min(100, designHealthScore));
 
   // ── Recommendation ───────────────────────────────────────────────────────
   let recommendation: string;
