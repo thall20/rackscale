@@ -594,7 +594,7 @@ export default function NewScenarioPage() {
                       <div>
                         <p className="font-semibold text-sm mb-1">Pro feature</p>
                         <p className="text-sm text-muted-foreground max-w-xs">
-                          Upgrade to Pro to validate physical facility constraints like floor area, floor level, flooring type, server spacing, and ceiling height.
+                          Facility Constraints are available on Pro and higher. Validate floor area, spacing, ceiling height, and flooring type against your rack design.
                         </p>
                       </div>
                       <Link href="/billing">
