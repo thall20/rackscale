@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getScenarioWithResult, getProject } from "@/lib/supabase-projects";
 import { useAuth } from "@/contexts/useAuth";
 import { calculateScenario } from "@/lib/calculateScenario";
-import type { RedundancyType, CoolingType } from "@/lib/calculateScenario";
+import type { RedundancyType, CoolingType, FlooringType } from "@/lib/calculateScenario";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,6 +94,13 @@ export default function ScenarioResultPage() {
       coolingType: scenario.cooling_type as CoolingType,
       costPerMw: scenario.cost_per_mw,
       costPerRack: scenario.cost_per_rack,
+      facilityConstraintsEnabled: scenario.facility_constraints_enabled ?? false,
+      sqftPerFloor: scenario.sqft_per_floor ?? undefined,
+      floorsUsed: scenario.floors_used ?? undefined,
+      floorLevel: scenario.floor_level ?? undefined,
+      flooringType: (scenario.flooring_type as FlooringType) ?? undefined,
+      serverSpacingFt: scenario.server_spacing_ft ?? undefined,
+      ceilingHeightFt: scenario.ceiling_height_ft ?? undefined,
     });
   }, [scenario]);
 
