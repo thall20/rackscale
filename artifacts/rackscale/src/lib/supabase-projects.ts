@@ -38,6 +38,8 @@ export type Project = {
   updated_at: string;
 };
 
+export type FlooringType = "Slab" | "Raised Floor" | "Structural Grid" | "Other";
+
 export type Scenario = {
   id: string;
   project_id: string;
@@ -55,6 +57,14 @@ export type Scenario = {
   containment_type: "none" | "hot_aisle" | "cold_aisle";
   cost_per_mw: number;
   cost_per_rack: number;
+  // ── Facility Constraints (nullable — added post-launch) ───────────────────
+  facility_constraints_enabled: boolean;
+  sqft_per_floor: number | null;
+  floor_level: number | null;
+  floors_used: number | null;
+  flooring_type: FlooringType | null;
+  server_spacing_ft: number | null;
+  ceiling_height_ft: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -103,6 +113,14 @@ export type CreateScenarioInput = {
   containment_type: "none" | "hot_aisle" | "cold_aisle";
   cost_per_mw: number;
   cost_per_rack: number;
+  // ── Facility Constraints (all optional) ──────────────────────────────────
+  facility_constraints_enabled?: boolean;
+  sqft_per_floor?: number | null;
+  floor_level?: number | null;
+  floors_used?: number | null;
+  flooring_type?: FlooringType | null;
+  server_spacing_ft?: number | null;
+  ceiling_height_ft?: number | null;
 };
 
 export type CreateScenarioResultInput = {
