@@ -6,7 +6,7 @@ import { listProjects, listAllScenariosWithProject } from "@/lib/supabase-projec
 import { useAuth } from "@/contexts/useAuth";
 import { calculateScenario } from "@/lib/calculateScenario";
 import type { ScenarioWithProjectName } from "@/lib/supabase-projects";
-import type { RedundancyType, CoolingType } from "@/lib/calculateScenario";
+import type { RedundancyType, CoolingType, FlooringType } from "@/lib/calculateScenario";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
   FolderKanban, Layers, AlertTriangle, Activity,
-  Plus, GitCompare, ArrowRight, Server,
+  Plus, GitCompare, ArrowRight, Server, Building2,
 } from "lucide-react";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -51,7 +51,21 @@ function calcForScenario(s: ScenarioWithProjectName) {
     coolingType: s.cooling_type as CoolingType,
     costPerMw: s.cost_per_mw,
     costPerRack: s.cost_per_rack,
+    facilityConstraintsEnabled: s.facility_constraints_enabled ?? false,
+    sqftPerFloor: s.sqft_per_floor ?? undefined,
+    floorsUsed: s.floors_used ?? undefined,
+    floorLevel: s.floor_level ?? undefined,
+    flooringType: (s.flooring_type as FlooringType) ?? undefined,
+    serverSpacingFt: s.server_spacing_ft ?? undefined,
+    ceilingHeightFt: s.ceiling_height_ft ?? undefined,
   });
+}
+
+function fitStatusColor(status: string): string {
+  if (status === "Good Fit") return "text-green-600";
+  if (status === "Review Recommended") return "text-amber-600";
+  if (status === "High Risk") return "text-destructive";
+  return "text-muted-foreground";
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────
@@ -83,7 +97,12 @@ export default function DashboardPage() {
   // KPI stats
   const totalProjects   = projects?.length ?? 0;
   const totalScenarios  = scenarioCalcs.length;
-  const highRiskCount   = scenarioCalcs.filter(({ o }) => o.riskLevel === "High Risk").length;
+  const highRiskCount   = scenarioCalcs.filter(
+    ({ s, o }) => o.riskLevel === "High Risk" || (s.facility_constraints_enabled && o.physicalFitStatus === "High Risk")
+  ).length;
+  const facilityRisksCount = scenarioCalcs.filter(
+    ({ s, o }) => s.facility_constraints_enabled && o.facilityRiskMessages.length > 0
+  ).length;
   const avgHealthScore  = totalScenarios > 0
     ? Math.round(scenarioCalcs.reduce((sum, { o }) => sum + o.designHealthScore, 0) / totalScenarios)
     : null;
@@ -127,7 +146,7 @@ export default function DashboardPage() {
         </div>
 
         {/* KPI cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
 
           {/* Total Projects */}
           <Card>
@@ -191,6 +210,34 @@ export default function DashboardPage() {
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {highRiskCount === 0 ? "No high-risk designs" : "Scenarios requiring attention"}
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Facility Risks */}
+          <Card className={cn(facilityRisksCount > 0 && "border-amber-400/50")}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-5 px-5">
+              <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Facility Risks
+              </CardTitle>
+              <Building2 className={cn(
+                "h-4 w-4",
+                facilityRisksCount > 0 ? "text-amber-500" : "text-muted-foreground"
+              )} />
+            </CardHeader>
+            <CardContent className="px-5 pb-5">
+              {isLoading ? <Skeleton className="h-9 w-12" /> : (
+                <>
+                  <div className={cn(
+                    "text-3xl font-bold font-mono",
+                    facilityRisksCount > 0 ? "text-amber-600" : "text-foreground"
+                  )} data-testid="stat-facility-risks">
+                    {facilityRisksCount}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {facilityRisksCount === 0 ? "No facility flags" : "Scenarios with flags"}
                   </p>
                 </>
               )}
@@ -307,6 +354,18 @@ export default function DashboardPage() {
                             {s.name}
                           </span>
                         </Link>
+                        {s.facility_constraints_enabled && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="inline-block text-[10px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 leading-tight">
+                              Facility
+                            </span>
+                            {o.physicalFitStatus !== "Not Evaluated" && (
+                              <span className={cn("text-xs font-medium", fitStatusColor(o.physicalFitStatus))}>
+                                {o.physicalFitStatus}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
 
                       {/* Project name */}
