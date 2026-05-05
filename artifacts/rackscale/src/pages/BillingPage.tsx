@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCompanyPlan } from "@/hooks/useCompanyPlan";
 import { listAllScenariosWithProject } from "@/lib/supabase-projects";
 import type { CompanyPlan } from "@/lib/plans";
+import { LockedFeatureCard } from "@/components/LockedFeatureCard";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -353,6 +354,33 @@ export default function BillingPage() {
             })}
           </div>
         </div>
+
+        {/* ── Pro features preview (LockedFeatureCard samples) ─────────── */}
+        {currentPlan === "Free" && (
+          <div>
+            <h2 className="text-lg font-semibold mb-1">Unlock on Pro</h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              These features are available when you upgrade your plan.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <LockedFeatureCard
+                featureName="Facility Constraints"
+                requiredPlan="Pro"
+                description="Set power budgets, cooling limits, and space constraints to validate rack designs against real infrastructure."
+              />
+              <LockedFeatureCard
+                featureName="Report Export"
+                requiredPlan="Pro"
+                description="Export full engineering reports as PDF, including power, cooling, cost, and risk flag summaries."
+              />
+              <LockedFeatureCard
+                featureName="Team Workspace"
+                requiredPlan="Team"
+                description="Invite colleagues, share projects across your organisation, and track team scenario history."
+              />
+            </div>
+          </div>
+        )}
 
         {/* ── Footer ───────────────────────────────────────────────────── */}
         <div className="text-center space-y-1 pb-4">
